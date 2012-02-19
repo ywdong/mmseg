@@ -44,11 +44,11 @@ class SegmenterManager {
     /** 
      *  Return a newly created segmenter
      */
-    Segmenter *getSegmenter( bool bFromPool = true);
+  Segmenter *getSegmenter( bool bFromPool = true);
 
-    virtual int init(const char* path, u1 method = SEG_METHOD_NGRAM);
-	void loadconfig(const char* confile);
-    void clear();
+  virtual int init(const char* path, u1 method = SEG_METHOD_NGRAM);
+  void loadconfig(const char* confile);
+  void clear();
 
 	SegmenterManager();
 	virtual ~SegmenterManager();
@@ -56,13 +56,14 @@ class SegmenterManager {
 public:
 	const static u1 SEG_METHOD_NGRAM = 0x1;
 protected:
-	CRFPP::FreeList<Segmenter> seg_freelist_;    
+	CRFPP::FreeList<Segmenter> seg_freelist_;
 	UnigramDict m_uni;
 	UnigramDict m_kw;
 	UnigramDict m_weight;
 	SynonymsDict m_sym;
 	ThesaurusDict m_thesaurus;
 	Segmenter_ConfigObj m_config;
+	std::string token_type_dict_path_;
 	u1 m_method;
 	u1 m_inited;
 	char m_msg[1024];

@@ -35,171 +35,173 @@ const char g_wordweight_unigram_dict_name[] = "weight.lib";
 const char g_synonyms_dict_name[] = "synonyms.dat";
 const char g_thesaurus_dict_name[] = "thesaurus.lib";
 const char g_config_name[] = "mmseg.ini";
+const char g_token_type_dict_name[] = "token_type.csv";
+
 /** 
  *  Return a newly created segmenter
  */
 
-Segmenter *SegmenterManager::getSegmenter( bool bFromPool)
-{
-	Segmenter* seg = NULL;
-	if(m_method == SEG_METHOD_NGRAM){
-		if(bFromPool)
-			seg = seg_freelist_.alloc();
-		else
-			seg = new Segmenter();
-		//init seg
-		seg->m_unidict = &m_uni;
-		seg->m_symdict = &m_sym;
-		if(m_kw.isLoad())
-			seg->m_kwdict = &m_kw;
-		if(m_weight.isLoad())
-			seg->m_weightdict =  &m_weight;
-		if(m_thesaurus.isLoad())
-			seg->m_thesaurus = &m_thesaurus;
-		seg->m_config = &m_config;
-	}		
-	return seg;
+Segmenter *SegmenterManager::getSegmenter(bool bFromPool) {
+  Segmenter* seg = NULL;
+  if (m_method == SEG_METHOD_NGRAM) {
+    if (bFromPool)
+      seg = seg_freelist_.alloc();
+    else
+      seg = new Segmenter();
+    //init seg
+    seg->m_unidict = &m_uni;
+    seg->m_symdict = &m_sym;
+    if (m_kw.isLoad())
+      seg->m_kwdict = &m_kw;
+    if (m_weight.isLoad())
+      seg->m_weightdict = &m_weight;
+    if (m_thesaurus.isLoad())
+      seg->m_thesaurus = &m_thesaurus;
+    seg->m_config = &m_config;
+    seg->LoadTokenTypeDict(token_type_dict_path_);
+  }
+  return seg;
 }
 
-void SegmenterManager::loadconfig(const char* confile)
-{
-	if(confile == NULL)
-		return;
-	dictionary	*	ini;
-	char		*	s;
-	int sl = 0;
-	//m_config
-	ini = iniparser_load(confile);
-	if (ini==NULL) {
-		return; // not exist or not a valid ini file
-	}
-	/*
-	u1 merge_number_and_ascii;
-	u1 seperate_number_ascii;
-	u1 compress_space;
-	u1 number_and_ascii_joint[512];
-	*/
-	m_config.merge_number_and_ascii = 
-		iniparser_getboolean(ini, "mmseg:merge_number_and_ascii", 0);
-	m_config.seperate_number_ascii = 
-		iniparser_getboolean(ini, "mmseg:seperate_number_ascii", 0);
-	m_config.compress_space = 
-		iniparser_getboolean(ini, "mmseg:compress_space", 0);
-	s = 
-		iniparser_getstring(ini, "mmseg:number_and_ascii_joint", NULL);
-	if(s){
-		sl = strlen(s);
-		if(sl>511){
-			memcpy(m_config.number_and_ascii_joint,s,sl);
-			m_config.number_and_ascii_joint[511] = 0;
-		}else{
-			memcpy(m_config.number_and_ascii_joint,s,sl);
-			m_config.number_and_ascii_joint[sl] = 0;
-		}
-	}
-	m_config.omni_segmentation = 
-		iniparser_getint(ini, "mmseg:omni_segmentation", 2); //output this only when term weight over 2
+void SegmenterManager::loadconfig(const char* confile) {
+  if (confile == NULL)
+    return;
+  dictionary * ini;
+  char * s;
+  int sl = 0;
+  //m_config
+  ini = iniparser_load(confile);
+  if (ini == NULL) {
+    return; // not exist or not a valid ini file
+  }
+  /*
+   u1 merge_number_and_ascii;
+   u1 seperate_number_ascii;
+   u1 compress_space;
+   u1 number_and_ascii_joint[512];
+   */
+  m_config.merge_number_and_ascii = iniparser_getboolean(ini,
+      "mmseg:merge_number_and_ascii", 0);
+  m_config.seperate_number_ascii = iniparser_getboolean(ini,
+      "mmseg:seperate_number_ascii", 0);
+  m_config.compress_space
+      = iniparser_getboolean(ini, "mmseg:compress_space", 0);
+  s = iniparser_getstring(ini, "mmseg:number_and_ascii_joint", NULL);
+  if (s) {
+    sl = strlen(s);
+    if (sl > 511) {
+      memcpy(m_config.number_and_ascii_joint, s, sl);
+      m_config.number_and_ascii_joint[511] = 0;
+    } else {
+      memcpy(m_config.number_and_ascii_joint, s, sl);
+      m_config.number_and_ascii_joint[sl] = 0;
+    }
+  }
+  m_config.omni_segmentation = iniparser_getint(ini, "mmseg:omni_segmentation",
+      2); //output this only when term weight over 2
 }
 
-int SegmenterManager::init(const char* path, u1 method)
-{
-	if( method != SEG_METHOD_NGRAM)
-		return -4; //unsupport segmethod.
-	
-	if( m_inited )
-		return 0; //only can be init once.
-	
-	char buf[1024];
-	memset(buf,0,sizeof(buf));
-	if(!path)
-		memcpy(buf,".",1);
-	else
-		memcpy(buf,path,strlen(path));
-	int nLen = (int)strlen(path);
-	//check is end.
+int SegmenterManager::init(const char* path, u1 method) {
+  if (method != SEG_METHOD_NGRAM)
+    return -4; //unsupport segmethod.
+
+  if (m_inited)
+    return 0; //only can be init once.
+
+  char buf[1024];
+  memset(buf, 0, sizeof(buf));
+  if (!path)
+    memcpy(buf, ".", 1);
+  else
+    memcpy(buf, path, strlen(path));
+  int nLen = (int) strlen(path);
+  //check is end.
 #ifdef WIN32
-	if(buf[nLen-1] != '\\'){
-		buf[nLen] = '\\';
-		nLen++;
-	}
+  if(buf[nLen-1] != '\\') {
+    buf[nLen] = '\\';
+    nLen++;
+  }
 #else
-	if(buf[nLen-1] != '/'){
-		buf[nLen] = '/';
-		nLen++;
-	}
+  if (buf[nLen - 1] != '/') {
+    buf[nLen] = '/';
+    nLen++;
+  }
 #endif
 	m_method = method;
-	int nRet = 0;
+  int nRet = 0;
 
-	if(method == SEG_METHOD_NGRAM) {
-		seg_freelist_.set_size(64);
-		memcpy(&buf[nLen],g_ngram_unigram_dict_name,strlen(g_ngram_unigram_dict_name));
-		nRet = m_uni.load(buf);
+  if (method == SEG_METHOD_NGRAM) {
+    seg_freelist_.set_size(64);
+    memcpy(&buf[nLen], g_ngram_unigram_dict_name, strlen(g_ngram_unigram_dict_name));
+    nRet = m_uni.load(buf);
 
-		if(nRet!=0){
-			printf("Unigram dictionary load Error\n");
-			return nRet;
-		}
-		//no needs to care kwformat
-		memcpy(&buf[nLen],g_kword_unigram_dict_name,strlen(g_kword_unigram_dict_name));
-		buf[nLen+strlen(g_kword_unigram_dict_name)] = 0;
-		nRet = m_kw.load(buf);
-		if(nRet!=0 && nRet!=-1 ){
-			//m_kw not exist or format error.
-			printf("Keyword dictionary load Error\n");
-			return nRet;
-		}
+    if (nRet != 0) {
+      printf("Unigram dictionary load Error\n");
+      return nRet;
+    }
 
-		//try to load weight dict
-		memcpy(&buf[nLen],g_wordweight_unigram_dict_name,strlen(g_wordweight_unigram_dict_name));
-		buf[nLen+strlen(g_wordweight_unigram_dict_name)] = 0;
-		nRet = m_weight.load(buf);
-		if(nRet!=0 && nRet!=-1 ){
-			//m_kw not exist or format error.
-			printf("Keyword dictionary load Error\n");
-			return nRet;
-		}
-		
-		memcpy(&buf[nLen],g_synonyms_dict_name,strlen(g_synonyms_dict_name));
-		buf[nLen+strlen(g_synonyms_dict_name)] = 0;
-		//load g_synonyms_dict_name, we do not care the load in right or not
-		nRet = m_sym.load(buf);
-		if(nRet!=0 && nRet != -1){
-			printf("Synonyms dictionary format Error\n");
-		}
+    memcpy(&buf[nLen],g_token_type_dict_name,strlen(g_token_type_dict_name));
+    buf[nLen + strlen(g_token_type_dict_name)] = 0;
+    token_type_dict_path_.assign(buf);
+    printf("file name:%s\n", token_type_dict_path_.c_str());
 
-		memcpy(&buf[nLen],g_thesaurus_dict_name,strlen(g_thesaurus_dict_name));
-		buf[nLen+strlen(g_thesaurus_dict_name)] = 0;
-		//load g_synonyms_dict_name, we do not care the load in right or not
-		nRet = m_thesaurus.load(buf);
-		if(nRet!=0 && nRet != -1){
-			printf("Thesaurus dictionary format Error\n");
-		}
+    //no needs to care kwformat
+    memcpy(&buf[nLen],g_kword_unigram_dict_name,strlen(g_kword_unigram_dict_name));
+    buf[nLen + strlen(g_kword_unigram_dict_name)] = 0;
+    nRet = m_kw.load(buf);
+    if (nRet != 0 && nRet != -1) {
+      //m_kw not exist or format error.
+      printf("Keyword dictionary load Error\n");
+      return nRet;
+    }
+
+    //try to load weight dict
+    memcpy(&buf[nLen],g_wordweight_unigram_dict_name,strlen(g_wordweight_unigram_dict_name));
+    buf[nLen + strlen(g_wordweight_unigram_dict_name)] = 0;
+    nRet = m_weight.load(buf);
+    if (nRet != 0 && nRet != -1) {
+      //m_kw not exist or format error.
+      printf("Keyword dictionary load Error\n");
+      return nRet;
+    }
+
+    memcpy(&buf[nLen],g_synonyms_dict_name,strlen(g_synonyms_dict_name));
+    buf[nLen + strlen(g_synonyms_dict_name)] = 0;
+    //load g_synonyms_dict_name, we do not care the load in right or not
+    nRet = m_sym.load(buf);
+    if (nRet != 0 && nRet != -1) {
+      printf("Synonyms dictionary format Error\n");
+    }
+
+    memcpy(&buf[nLen], g_thesaurus_dict_name, strlen(g_thesaurus_dict_name));
+    buf[nLen + strlen(g_thesaurus_dict_name)] = 0;
+    //load g_synonyms_dict_name, we do not care the load in right or not
+    nRet = m_thesaurus.load(buf);
+    if (nRet != 0 && nRet != -1) {
+      printf("Thesaurus dictionary format Error\n");
+    }
 
 		//read config
-		memcpy(&buf[nLen],g_config_name,strlen(g_config_name));
-		buf[nLen+strlen(g_config_name)] = 0;
-		loadconfig(buf);
+    memcpy(&buf[nLen], g_config_name, strlen(g_config_name));
+    buf[nLen + strlen(g_config_name)] = 0;
+    loadconfig(buf);
 
-		nRet = 0;
-		m_inited = 1;
-		return nRet;
-	}
-	return -1;
+    nRet = 0;
+    m_inited = 1;
+    return nRet;
+  }
+  return -1;
 }
 
-void SegmenterManager::clear()
-{
-    seg_freelist_.free();
+void SegmenterManager::clear() {
+  seg_freelist_.free();
 }
-SegmenterManager::SegmenterManager()
-		:m_inited(0)
-{
-	m_method = SEG_METHOD_NGRAM;
+SegmenterManager::SegmenterManager() :
+  m_inited(0) {
+  m_method = SEG_METHOD_NGRAM;
 }
-SegmenterManager::~SegmenterManager()
-{
-	clear();
+SegmenterManager::~SegmenterManager() {
+  clear();
 }
 } /* End of namespace css */
 

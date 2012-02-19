@@ -29,21 +29,6 @@
 
 
 #include "Utf8_16.h"
-#include "StringTokenizer.h"
-
-/*
-#ifdef WIN32
-typedef std::wstring unistring;
-#else
-
-#if defined(_WIN64)   
-
-typedef std::basic_string<u2> unistring;
-
-#else
-typedef std::basic_string<u2> unistring;
-#endif
-*/
 
 #ifdef WIN32
 #define snprintf        _snprintf

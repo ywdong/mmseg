@@ -1,6 +1,8 @@
 #include "StringTokenizer.h"
 
-namespace csr { 
+using std::string;
+
+namespace csr {
 
 StringTokenizer::StringTokenizer(const std::string& _str, const std::string& _delim)
 {

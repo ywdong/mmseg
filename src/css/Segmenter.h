@@ -25,11 +25,7 @@
 #define css_Segmenter_h
 
 #include <vector>
-#ifdef WIN32
-#include <hash_map>
-#else
-#include <ext/hash_map>
-#endif
+#include "hash_tables.h"
 #include "SegmentPkg.h"
 #include "UnigramDict.h"
 #include "SynonymsDict.h"
@@ -44,14 +40,9 @@
 #include "UnigramCorpusReader.h"
 
 #include "ThesaurusDict.h"
+#include "segmenter_token.h"
 
 namespace css {
-using namespace CRFPP;
-#ifdef WIN32
-using namespace stdext;
-#else
-using namespace __gnu_cxx;
-#endif
 
 #define CRFDICT_UTF8	1
 
@@ -100,7 +91,7 @@ x1 x2, the utf-8 char's position token
 tag-set:
 m: number
 e: non CJK char, e.g. English pinyin
-t: time.    ÄêºÅ ¸ÉÖ§µÈ£¨´Ë´¦Ê¶±ð³öºó£¬½ö¼ÓÈë oov £¬²»²ÎÓëÊµ¼Ê·Ö´Ê£©
+t: time.    ï¿½ï¿½ï¿½ ï¿½ï¿½Ö§ï¿½È£ï¿½ï¿½Ë´ï¿½Ê¶ï¿½ï¿½ï¿½ï¿½ó£¬½ï¿½ï¿½ï¿½ï¿½ï¿½ oov ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Êµï¿½Ê·Ö´Ê£ï¿½
 c: CJK char.
 s: Symbol e.g. @
 w: Sentence seperator.
@@ -109,73 +100,74 @@ x: unknown char.
 
 class Segmenter_ConfigObj {
 public:
-	u1 merge_number_and_ascii;
-	u1 seperate_number_ascii;
-	//TODO: compress_space is still unsupported, for spaces can be handled in stopword list.
-	u1 compress_space;
-	u1 number_and_ascii_joint[512];
-	u1 omni_segmentation;
-	Segmenter_ConfigObj():
-		merge_number_and_ascii(0),
-		seperate_number_ascii(0),
-		compress_space(0),
-		omni_segmentation(0)
-	{
-		number_and_ascii_joint[0] = 0;
-	}
+  u1 merge_number_and_ascii;
+  u1 seperate_number_ascii;
+  //TODO: compress_space is still unsupported, for spaces can be handled in stopword list.
+  u1 compress_space;
+  u1 number_and_ascii_joint[512];
+  u1 omni_segmentation;
+  Segmenter_ConfigObj()
+    : merge_number_and_ascii(0),
+      seperate_number_ascii(0),
+      compress_space(0),
+      omni_segmentation(0) {
+    number_and_ascii_joint[0] = 0;
+  }
 };
 
 class Segmenter {
-
- public:
-
-
-    /** 
-     *  @return 0
-     */
-	void setBuffer(u1* buf, u4 length);
-	const u1* popOmniToken(u2& aLen);
-	const u1* peekToken(u2& aLen, u2& aSymLen, u2 n = 0);
-	void popToken(u2 len, u2 n = 0);
-	void segNgram(int n) { m_ngram = n; }
-	int getOffset();
-	u1  isSentenceEnd();
-	int isKeyWord(u1* buf, u4 length);
-	int getWordWeight(u1* buf, u4 length);
-	
-	const char* thesaurus(const char* key, u2 key_len);
-    Segmenter();
-	~Segmenter();
-
-protected:
-	const u1* peekKwToken(u2& aLen, u2& aSymLen);
-	void  popKwToken(u2 len);
 public:
-	static int toLowerCpy(const u1* src, u1* det, u2 det_size);
-protected:
-	int m_begin_id;
-	int m_end_id;
-	int m_begin_count;
-	int m_end_count;
-	int m_ngram;
+  Segmenter();
+  ~Segmenter();
+  bool LoadTokenTypeDict(const std::string& path);
+  void setBuffer(u1* buf, u4 length);
+  void SetBuffer(const char* buff, int len);
+  bool GetNextToken(SegmentedToken* word, int ref_offset = 0);
 
-	ChineseCharTaggerImpl* m_tagger;
-	MMThunk m_thunk;
-	//static ToLowerImpl* m_lower;
+  void segNgram(int n) {
+    m_ngram = n;
+  }
+  u1 isSentenceEnd();
+  int isKeyWord(u1* buf, u4 length);
+  int getWordWeight(u1* buf, u4 length);
+  const char* thesaurus(const char* key, u2 key_len);
+
+private:
+  const u1* peekKwToken(u2& aLen, u2& aSymLen);
+  void popKwToken(u2 len);
+  const u1* popOmniToken(u2& aLen);
+  const u1* peekToken(u2& aLen, u2& aSymLen, u2 n = 0);
+  void popToken(u2 len, u2 n = 0);
+  static int toLowerCpy(const u1* src, u1* det, u2 det_size);
+
 public:
+  UnigramDict * m_unidict;
+  UnigramDict * m_kwdict;
+  UnigramDict * m_weightdict;
+  SynonymsDict * m_symdict;
+  ThesaurusDict * m_thesaurus;
 
-    UnigramDict * m_unidict;
-	UnigramDict * m_kwdict;
-	UnigramDict * m_weightdict;
-	SynonymsDict * m_symdict;
-	ThesaurusDict * m_thesaurus;
-	
-	Segmenter_ConfigObj* m_config;
-	//mmseg used.
-	u1* m_buffer_begin;
-	u1* m_buffer_ptr;
-	u1* m_buffer_chunk_begin;
-	u1* m_buffer_end;
+  Segmenter_ConfigObj* m_config;
+
+private:
+  int m_begin_id;
+  int m_end_id;
+  int m_begin_count;
+  int m_end_count;
+  int m_ngram;
+  int current_offset_;
+
+  ChineseCharTaggerImpl* m_tagger;
+  MMThunk m_thunk;
+  //static ToLowerImpl* m_lower;
+
+  //mmseg used.
+  u1* m_buffer_begin;
+  u1* m_buffer_ptr;
+  u1* m_buffer_chunk_begin;
+  u1* m_buffer_end;
+
+  base::hash_map<std::string, std::string> token_type_;
 };
 
 } /* End of namespace css */

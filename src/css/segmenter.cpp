@@ -30,40 +30,58 @@
 #include <algorithm>
 #include <math.h>
 #include "Utf8_16.h"
+#include "simple_line_reader.h"
+
+using namespace std;
+using base::hash_map;
 
 namespace css {
 	using namespace csr;
 
 #define MAX_TOKEN_LENGTH 15 //3*5
+static const string kDefaultTokenType = "common";
 
-int Segmenter::getOffset()
-{
-	return 0; //(int)(m_offset + m_pkg_offset);
+const char* Segmenter::thesaurus(const char* key, u2 key_len) {
+  if (this->m_thesaurus) {
+    return this->m_thesaurus->find(key, key_len);
+  }
+  return NULL;
 }
 
-const char* Segmenter::thesaurus(const char* key, u2 key_len)
-{
-	if(this->m_thesaurus){
-		return this->m_thesaurus->find(key, key_len);
-	}
-	return NULL;
+Segmenter::Segmenter() :
+  m_tagger(NULL) {
+  m_symdict = NULL;
+  m_kwdict = NULL;
+  m_weightdict = NULL;
+  m_config = NULL;
+  m_thesaurus = NULL;
+  //if(!m_lower)
+  //	m_lower = ToLower::Get();
 }
 
-Segmenter::Segmenter():m_tagger(NULL) 
-{
-	m_symdict = NULL;
-	m_kwdict = NULL;
-	m_weightdict = NULL;
-	m_config = NULL;
-	m_thesaurus = NULL;
-	//if(!m_lower)
-	//	m_lower = ToLower::Get();
+Segmenter::~Segmenter() {
 }
 
-Segmenter::~Segmenter()
-{
+bool Segmenter::LoadTokenTypeDict(const string& path) {
+  printf("begin to load token type dict:%s\n", path.c_str());
+  SimpleLineReader reader(path);
+  vector<string> lines;
+  if (!reader.ReadLines(&lines)) {
+    return false;
+  }
+  for (size_t i = 0; i < lines.size(); ++i) {
+    string::size_type index = lines[i].find('\t');
+    if (index == string::npos) {
+      printf("bad line:%s\n", lines[i]);
+      continue;
+    }
+    string token = lines[i].substr(0, index);
+    // TODO: replace type with enum to save space, but now we don't know
+    //  which types must be supported, so cannot write enum for it.
+    string type = lines[i].substr(index + 1);
+    token_type_.insert(make_pair(token, type));
+  }
 }
-
 /*
 0, ok
 1, det is too small
@@ -74,14 +92,19 @@ int Segmenter::toLowerCpy(const u1* src, u1* det, u2 det_size)
 }
 void Segmenter::setBuffer(u1* buf, u4 length)
 {
-	m_buffer_begin = buf;
-	m_buffer_ptr = m_buffer_begin;
-	m_buffer_end = &buf[length];
-	m_buffer_chunk_begin = m_buffer_begin;
-	if(!m_tagger)
-		m_tagger = ChineseCharTagger::Get();
-	m_thunk.reset();
-	return;
+  current_offset_ = 0;
+  m_buffer_begin = buf;
+  m_buffer_ptr = m_buffer_begin;
+  m_buffer_end = &buf[length];
+  m_buffer_chunk_begin = m_buffer_begin;
+  if (!m_tagger)
+    m_tagger = ChineseCharTagger::Get();
+  m_thunk.reset();
+  return;
+}
+
+void Segmenter::SetBuffer(const char* buff, int len) {
+  setBuffer((u1*)buff, len);
 }
 
 u1  Segmenter::isSentenceEnd()
@@ -180,7 +203,8 @@ const u1* Segmenter::peekToken(u2& aLen, u2& aSymLen, u2 n)
 	u2 tag  = 0;
 	int iCode = 0;
 	while(*ptr && (ptr<m_buffer_end) && i<CHUNK_BUFFER_SIZE){
-		UnigramDict::result_pair_type rs[1024];
+	  UnigramDict::result_pair_type rs[1024];
+	  //memset(rs, 0, sizeof(rs));
 		//try to tag
 		iCode = csrUTF8Decode(ptr, len);
 		if(iCode == 0xFEFF) {
@@ -356,5 +380,28 @@ void  Segmenter::popKwToken(u2 len)
 	return;
 }
 
+bool Segmenter::GetNextToken(SegmentedToken* word, int ref_offset) {
+  word->Clear();
+  u2 len = 0;
+  u2 symlen = 0;
+  len = 0;
+  char* tok = (char*) peekToken(len, symlen);
+  if (!tok || !*tok || !len) {
+    return false;
+  }
+  word->word_.assign(tok, tok + len);
+  word->begin_ = ref_offset + current_offset_;
+  word->end_ = word->begin() + len;
+  hash_map<string, string>::const_iterator iter =
+      token_type_.find(word->word_);
+  if (iter == token_type_.end()) {
+    word->token_type_ = kDefaultTokenType;
+  } else {
+    word->token_type_ = iter->second;
+  }
+  popToken(len);
+  current_offset_ += len;
+  return true;
+}
 } /* End of namespace css */
 

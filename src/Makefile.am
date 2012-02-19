@@ -23,7 +23,8 @@ AM_CPPFLAGS		= -fPIC -I$(top_builddir) -I$(top_srcdir) -I$(top_srcdir)/src/css -
 
 pkginclude_HEADERS 	=	css/ICorpusReader.h  css/SegmenterManager.h  css/tolowercase.h css/UnigramRecord.h \
 				css/ThesaurusDict.h  css/mmthunk.h        css/SegmentPkg.h        css/UnigramCorpusReader.h	\
-							css/Segmenter.h      css/SynonymsDict.h      css/UnigramDict.h	\
+							css/Segmenter.h      css/SynonymsDict.h      css/UnigramDict.h	css/simple_line_reader.h \
+							css/segmenter_token.h css/hash_tables.h \
 							utils/csr_mmap.h   utils/darts.h     utils/scoped_ptr.h       utils/Utf8_16.h	\
 							utils/csr_assert.h  utils/csr_pool.h   utils/freelist.h  utils/Singleton.h	\
 							utils/csr.h         utils/csr_utils.h  utils/os.h        utils/StringTokenizer.h	\
@@ -38,9 +39,11 @@ lib_LTLIBRARIES         = libmmseg.la
 libmmseg_la_LIBADD	= 
 libmmseg_la_LDFLAGS = -static
 libmmseg_la_SOURCES       =  css/mmthunk.cpp	css/SegmenterManager.cpp  css/SynonymsDict.cpp	\
-	css/UnigramDict.cpp css/segmenter.cpp  css/SegmentPkg.cpp \
+	css/UnigramDict.cpp css/segmenter.cpp  css/SegmentPkg.cpp css/simple_line_reader.cpp \
 	css/UnigramCorpusReader.cpp  css/UnigramRecord.cpp	\
-	utils/assert.c  utils/bsd_getopt.c  utils/csr_mmap.c  utils/csr_utils.c	utils/Utf8_16.cpp utils/StringTokenizer.cpp iniparser/dictionary.c iniparser/iniparser.c css/ThesaurusDict.cpp
+	utils/assert.c  utils/bsd_getopt.c  utils/csr_mmap.c \
+	 utils/csr_utils.c	utils/Utf8_16.cpp utils/StringTokenizer.cpp \
+	 iniparser/dictionary.c iniparser/iniparser.c css/ThesaurusDict.cpp
 
 bin_PROGRAMS	= mmseg
 mmseg_LDADD	= $(top_builddir)/src/libmmseg.la 
