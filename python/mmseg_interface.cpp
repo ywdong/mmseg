@@ -33,11 +33,11 @@ static int PyMMSeg_init(csfHelper_MMSegObject *self, PyObject *args, PyObject *k
 
 static void PyMMSeg_dealloc(csfHelper_MMSegObject* self);
 
-static PyMethodDef PyMMSeg_Helper_methods[] = {  
-	{"segment", PyMmseg_Segment, METH_VARARGS},   
-	{"build_dict", PyMmseg_BuildDict, METH_VARARGS},   
-	{NULL, NULL}  
-};  
+static PyMethodDef PyMMSeg_Helper_methods[] = {
+	{"segment", PyMmseg_Segment, METH_VARARGS},
+	{"build_dict", PyMmseg_BuildDict, METH_VARARGS},
+	{NULL, NULL}
+};
 
 
 
@@ -90,105 +90,97 @@ static PyTypeObject csfHelper_MMSegType = {
 	0, /*tp_weaklist*/
 };
 
-static int PyMMSeg_init(csfHelper_MMSegObject *self, PyObject *args, PyObject *kwds) {
-	const char* key = NULL;
-	PyObject* pV = NULL;
-	int ok = PyArg_ParseTuple( args, "s", &key);  //not inc the value refer
-	if(!ok) return -1;  
-	if(!self->m_segmgr) {
-		self->m_segmgr = new SegmenterManager();
-		//can init only once for each instance
-		int nRet = self->m_segmgr->init(key);
-		//printf("%d:%s\n",nRet, key);
-		if(nRet != 0) {
-			delete self->m_segmgr;
-			PyErr_SetString(PyExc_ValueError, "invalid dict_path");
-			return -1;
-		}
-	}
-	return 0;
+static int PyMMSeg_init(csfHelper_MMSegObject *self, PyObject *args,
+    PyObject *kwds) {
+  const char* key = NULL;
+//  PyObject* pV = NULL;
+  int ok = PyArg_ParseTuple(args, "s", &key); //not inc the value refer
+  if (!ok)
+    return -1;
+  if (!self->m_segmgr) {
+    self->m_segmgr = new SegmenterManager();
+    //can init only once for each instance
+    int nRet = self->m_segmgr->init(key);
+    //printf("%d:%s\n",nRet, key);
+    if (nRet != 0) {
+      delete self->m_segmgr;
+      PyErr_SetString(PyExc_ValueError, "invalid dict_path");
+      return -1;
+    }
+  }
+  return 0;
 }
 
 static void PyMMSeg_dealloc(csfHelper_MMSegObject* self) {
-	if(self->m_segmgr)
-	{
-		delete self->m_segmgr;
-		self->m_segmgr = NULL;
-	}
+  if (self->m_segmgr) {
+    delete self->m_segmgr;
+    self->m_segmgr = NULL;
+  }
 }
 
-PyObject * PyMmseg_Segment(PyObject * self, PyObject* args)
-{
-	csfHelper_MMSegObject *self2 = (csfHelper_MMSegObject *)self;
-	char *fromPython; 
+PyObject * PyMmseg_Segment(PyObject * self, PyObject* args) {
+  csfHelper_MMSegObject *self2 = (csfHelper_MMSegObject *) self;
+  char *fromPython;
 
-	if (!PyArg_Parse(args, "(s)", &fromPython))
-		return NULL;
-	else
-	{
-		Segmenter* seg = self2->m_segmgr->getSegmenter(false); 
-		seg->setBuffer((u1*)fromPython, (u4)strlen(fromPython));
+  if (!PyArg_Parse(args, "(s)", &fromPython)) {
+    return NULL;
+  } else {
+    Segmenter* seg = self2->m_segmgr->getSegmenter(false);
+    seg->setBuffer((u1*) fromPython, (u4) strlen(fromPython));
 
-		PyObject* seg_result = PyList_New(0);
-		while(1)
-		{
-			u2 len = 0, symlen = 0;
-			char* tok = (char*)seg->peekToken(len,symlen);
-			if(!tok || !*tok || !len){
-				break;
-			}
-			//append new item
-			PyList_Append(seg_result, PyString_FromStringAndSize(tok,len));
-			seg->popToken(len);
-		}
-		//FIXME: free the segmenter
-		delete seg;
-
-		return seg_result;
-	}
+    PyObject* seg_result = PyList_New(0);
+    SegmentedToken token;
+    while (seg->GetNextToken(&token, 0)) {
+      PyObject* dict = PyDict_New();
+      PyDict_SetItemString(dict, "word", PyString_FromString(token.word().c_str()));
+      PyDict_SetItemString(dict, "begin", Py_BuildValue("i", token.begin()));
+      PyDict_SetItemString(dict, "end", Py_BuildValue("i", token.end()));
+      PyObject* token_types = PyList_New(0);
+      for (size_t i = 0; i < token.token_type().size(); ++i) {
+        PyList_Append(token_types, Py_BuildValue("i",int(token.token_type()[i])));
+      }
+      PyDict_SetItemString(dict, "token_type", token_types);
+      PyList_Append(seg_result, dict);
+      token.Clear();
+    }
+    delete seg;
+    return seg_result;
+  }
 }
 
-PyObject * PyMmseg_BuildDict(PyObject * self, PyObject* args)
-{
-	csfHelper_MMSegObject *self2 = (csfHelper_MMSegObject *)self;
-	char *type; 
-	char *source_file;
-	char *target_file;
+PyObject * PyMmseg_BuildDict(PyObject * self, PyObject* args) {
+//  csfHelper_MMSegObject *self2 = (csfHelper_MMSegObject *) self;
+  char *type;
+  const char *source_file;
+  const char *target_file;
 
-	if (!PyArg_Parse(args, "(sss)", &type, &source_file, &target_file))
-		return NULL;
-	else
-	{
-		int ret = 0;
-		if(strncmp("unigram", type, 7) == 0) {
-			UnigramCorpusReader ur;
-			ur.open(source_file, NULL);
-			int ret = 0;
-			{
-				UnigramDict ud;
-				ret = ud.import(ur);
-				ud.save(target_file);		
-			}
-			return Py_BuildValue("i",ret);
-		}
+  if (!PyArg_Parse(args, "(sss)", &type, &source_file, &target_file))
+    return NULL;
+  else {
+    int ret = 0;
+    if (strncmp("unigram", type, 7) == 0) {
+      int ret = 0;
+      UnigramDict ud;
+      ret = ud.import(source_file, target_file);
+      return Py_BuildValue("i", ret);
+    }
 
-		if(strncmp("thesaurus", type, 9) == 0 ) {
-			ThesaurusDict tdict;
-			ret = tdict.import(source_file, target_file);
-			return Py_BuildValue("i",ret);
-		}
+    if (strncmp("thesaurus", type, 9) == 0) {
+      ThesaurusDict tdict;
+      ret = tdict.import(source_file, target_file);
+      return Py_BuildValue("i", ret);
+    }
 
-		return Py_None;
-	}
+    return Py_None;
+  }
 }
 
- int init_cmmseg_module(PyObject *m)
- {
-	 csfHelper_MMSegType.tp_new = PyType_GenericNew;
-	 if (PyType_Ready(&csfHelper_MMSegType) < 0)
-		 return -1;
-	 return PyModule_AddObject(m, "MMSeg", (PyObject *)&csfHelper_MMSegType);
- }
+int init_cmmseg_module(PyObject *m) {
+  csfHelper_MMSegType.tp_new = PyType_GenericNew;
+  if (PyType_Ready(&csfHelper_MMSegType) < 0)
+    return -1;
+  return PyModule_AddObject(m, "MMSeg", (PyObject *) &csfHelper_MMSegType);
+}
 
 #ifdef __cplusplus
 }

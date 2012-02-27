@@ -44,7 +44,16 @@ inline bool ParseTypesFromInt(int type, std::vector<TokenType::type>* ret) {
   } else if (type & 0x0004) {
     ret->push_back(TokenType::PLACE);
   }
+  return true;
   // TODO(yesp) : add more types
+}
+
+inline unsigned int ParseTypesToInt(const std::vector<TokenType::type>& types) {
+  unsigned int ret = 0;
+  for (size_t i = 0; i < types.size(); ++i) {
+    ret += int (types[i]);
+  }
+  return ret;
 }
 
 class SegmentedToken {
@@ -74,6 +83,9 @@ class SegmentedToken {
   }
   const std::vector<TokenType::type>& token_type() const {
     return token_type_;
+  }
+  unsigned int types() const {
+    return ParseTypesToInt(token_type_);
   }
  protected:
    int begin_;

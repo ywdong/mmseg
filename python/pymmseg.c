@@ -11,7 +11,7 @@ API
 FIXME: should use multi dict.
 */
 static struct PyMethodDef mmseg_methods[] = {
-	{"build_dict", PyMmseg_BuildDict, METH_VARARGS},   
+	{"build_dict", PyMmseg_BuildDict, METH_VARARGS},
 	{NULL, NULL}
 };
 
