@@ -36,7 +36,7 @@
 #include "bsd_getopt.h"
 #endif
 
-#include "UnigramCorpusReader.h"
+//#include "UnigramCorpusReader.h"
 #include "UnigramDict.h"
 #include "SynonymsDict.h"
 #include "ThesaurusDict.h"
@@ -184,23 +184,10 @@ int main(int argc, char **argv) {
       out_file = target_file;
     }
 
-    UnigramCorpusReader ur;
-    ur.open(uni_corpus_file, bPlainText ? "plain" : NULL);
     if (!bUcs2) {
       UnigramDict ud;
-      int ret = ud.import(ur);
-      ud.save(out_file);
-      //check
-      int i = 0;
-      for (i = 0; i < ur.count(); i++) {
-        UnigramRecord* rec = ur.getAt(i);
-
-        if (ud.exactMatch(rec->key.c_str()) == rec->count) {
-          continue;
-        } else {
-          printf("error!!!");
-        }
-      }//end for
+      printf("begin to import\n");
+      int ret = ud.import(uni_corpus_file, out_file);
     } else {
       printf("UCS2 used as inner encoding, is unsupported\n");
     }
@@ -268,8 +255,13 @@ int segment(const char* file, Segmenter* seg, int repeated_time, bool bQuite) {
     SegmentedToken word;
     while (seg->GetNextToken(&word)) {
       if (i == 0 && !bQuite) {
-        printf("%s[%s]\t", word.word().c_str(), word.token_type().c_str());
+        printf("%s", word.word().c_str());
+        for (int k = 0; k < word.token_type().size(); ++k) {
+          printf("\t%s", TokenTypeToString(word.token_type()[k]));
+        }
+        printf("\n");
       }
+      word.Clear();
     }
   }
   unsigned long total_time = currentTimeMillis() - begin_time;

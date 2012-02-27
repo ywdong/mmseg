@@ -25,24 +25,36 @@
 #define css_UnigramRecord_h
 
 #include <string>
+#include <vector>
 #include "csr.h"
 
-
+using std::string;
 namespace css {
 
-class UnigramRecord {
-
- public:
-
-    UnigramRecord();
-
- public:
-    std::string key;
-	//std::string wkey;
-	int count;
-
+struct UnigramRecord {
+public:
+  UnigramRecord(const std::string& k, int f, int type);
+  std::string key;
+  int freq;
+  int token_type;
 };
 
+inline void SplitString(
+    const std::string& str,
+    char s,
+    std::vector<std::string>* r) {
+  size_t last = 0;
+  size_t i;
+  size_t c = str.size();
+  for (i = 0; i <= c; ++i) {
+    if (i == c || str[i] == s) {
+      size_t len = i - last;
+      string tmp = str.substr(last, len);
+      r->push_back(tmp);
+      last = i + 1;
+    }
+  }
+}
 } /* End of namespace css */
 #endif
 

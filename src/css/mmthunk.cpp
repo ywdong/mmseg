@@ -30,8 +30,10 @@
 
 namespace css {
 
-void MMThunk::setItems(i4 idx, u2 rs_count,
-    UnigramDict::result_pair_type* results) {
+void MMThunk::setItems(i4 idx,
+                       u2 rs_count,
+                       UnigramDict::result_pair_type* results,
+                       UnigramDict* dict) {
   if (m_max_length < idx)
     m_max_length = idx;
 
@@ -40,7 +42,11 @@ void MMThunk::setItems(i4 idx, u2 rs_count,
   item->freq = 0;
   item->items.clear();
   for (u2 i = 0; i < rs_count; i++) {
-    item->freq += results[i].value;
+    if (dict->old_version()) {
+      item->freq = results[i].value;
+    } else {
+      item->freq += dict->FindFreqByOffset(results[i].value);
+    }
     item->items.push_back(results[i].length);
     //if(i == rs_count - 1)
     //	item->length = results[i].length;
@@ -50,15 +56,21 @@ void MMThunk::setItems(i4 idx, u2 rs_count,
 }
 
 //set the potient key words.
-void MMThunk::setKwItems(i4 idx, u2 rs_count,
-    UnigramDict::result_pair_type* results) {
+void MMThunk::setKwItems(i4 idx,
+    u2 rs_count,
+    UnigramDict::result_pair_type* results,
+    UnigramDict* dict) {
   if (m_max_length < idx)
     m_max_length = idx;
   u4 index = (idx % CHUNK_BUFFER_SIZE) + base_offset;
   item_info* item = item_list.alloc();
   item->items.clear();
   for (u2 i = 0; i < rs_count; i++) {
-    item->freq += results[i].value;
+    if (dict->old_version()) {
+      item->freq = results[i].value;
+    } else {
+      item->freq += dict->FindFreqByOffset(results[i].value);
+    }
     item->items.push_back(results[i].length);
     //if(i == rs_count - 1)
     //	item->length = results[i].length;

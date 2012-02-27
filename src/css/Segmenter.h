@@ -119,7 +119,6 @@ class Segmenter {
 public:
   Segmenter();
   ~Segmenter();
-  bool LoadTokenTypeDict(const std::string& path);
   void setBuffer(u1* buf, u4 length);
   void SetBuffer(const char* buff, int len);
   bool GetNextToken(SegmentedToken* word, int ref_offset = 0);
@@ -134,9 +133,9 @@ public:
 
 private:
   const u1* peekKwToken(u2& aLen, u2& aSymLen);
-  void popKwToken(u2 len);
-  const u1* popOmniToken(u2& aLen);
   const u1* peekToken(u2& aLen, u2& aSymLen, u2 n = 0);
+  void popKwToken(u2 len);
+//  const u1* popOmniToken(u2& aLen);
   void popToken(u2 len, u2 n = 0);
   static int toLowerCpy(const u1* src, u1* det, u2 det_size);
 
@@ -146,6 +145,7 @@ public:
   UnigramDict * m_weightdict;
   SynonymsDict * m_symdict;
   ThesaurusDict * m_thesaurus;
+  base::hash_map<std::string, std::vector<TokenType::type> >* m_token_type;
 
   Segmenter_ConfigObj* m_config;
 
@@ -166,8 +166,6 @@ private:
   u1* m_buffer_ptr;
   u1* m_buffer_chunk_begin;
   u1* m_buffer_end;
-
-  base::hash_map<std::string, std::string> token_type_;
 };
 
 } /* End of namespace css */

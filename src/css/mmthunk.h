@@ -245,8 +245,14 @@ namespace css {
 		};
 		~MMThunk() {};
 		
-		void setItems(i4 idx, u2 rs_count, UnigramDict::result_pair_type* results);
-		void setKwItems(i4 idx, u2 rs_count, UnigramDict::result_pair_type* results);
+		void setItems(i4 idx,
+		    u2 rs_count,
+		    UnigramDict::result_pair_type* results,
+		    UnigramDict* dict);
+		void setKwItems(i4 idx,
+		    u2 rs_count,
+		    UnigramDict::result_pair_type* results,
+		    UnigramDict* dict);
 		void advance(u2 step) { base_offset += step; };
 		//peek the current token
 		u1* peekToken(u2& length);

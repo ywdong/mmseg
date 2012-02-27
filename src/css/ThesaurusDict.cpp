@@ -1,16 +1,12 @@
 #include <algorithm>
 #include <fstream>
 #include <iostream>
+#include <string>
+#include <vector>
 
-#include "UnigramCorpusReader.h"
 #include "ThesaurusDict.h"
 
 namespace css {
-
-/*
-	ThesaurusDict::ThesaurusDict () {};
-	virtual ~ThesaurusDict () {};
-*/
 
 const char thdt_head_mgc[] = "THDT";
 

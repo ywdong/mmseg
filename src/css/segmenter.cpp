@@ -30,7 +30,6 @@
 #include <algorithm>
 #include <math.h>
 #include "Utf8_16.h"
-#include "simple_line_reader.h"
 
 using namespace std;
 using base::hash_map;
@@ -62,26 +61,6 @@ Segmenter::Segmenter() :
 Segmenter::~Segmenter() {
 }
 
-bool Segmenter::LoadTokenTypeDict(const string& path) {
-  printf("begin to load token type dict:%s\n", path.c_str());
-  SimpleLineReader reader(path);
-  vector<string> lines;
-  if (!reader.ReadLines(&lines)) {
-    return false;
-  }
-  for (size_t i = 0; i < lines.size(); ++i) {
-    string::size_type index = lines[i].find('\t');
-    if (index == string::npos) {
-      printf("bad line:%s\n", lines[i]);
-      continue;
-    }
-    string token = lines[i].substr(0, index);
-    // TODO: replace type with enum to save space, but now we don't know
-    //  which types must be supported, so cannot write enum for it.
-    string type = lines[i].substr(index + 1);
-    token_type_.insert(make_pair(token, type));
-  }
-}
 /*
 0, ok
 1, det is too small
@@ -146,19 +125,19 @@ int dry_strchr(const u1* pattern, u2 iCode)
 	return -1;
 }
 
-const u1* Segmenter::popOmniToken(u2& aLen)
-{
-	/*
-		- return the Omni Token system found.
-		- return NULL if current empty.
-		- remove the top token.
-	*/
-	// m_buffer_ptr - m_buffer_begin; //the current offset.
-	u4 iOffset = m_thunk.popOmniToken((m_buffer_ptr - m_buffer_chunk_begin), aLen);
-	if(aLen)
-		return &m_buffer_chunk_begin[iOffset];
-	return NULL;
-}
+//const u1* Segmenter::popOmniToken(u2& aLen)
+//{
+//	/*
+//		- return the Omni Token system found.
+//		- return NULL if current empty.
+//		- remove the top token.
+//	*/
+//	// m_buffer_ptr - m_buffer_begin; //the current offset.
+//	u4 iOffset = m_thunk.popOmniToken((m_buffer_ptr - m_buffer_chunk_begin), aLen);
+//	if(aLen)
+//		return &m_buffer_chunk_begin[iOffset];
+//	return NULL;
+//}
 
 const u1* Segmenter::peekToken(u2& aLen, u2& aSymLen, u2 n)
 {
@@ -237,23 +216,25 @@ const u1* Segmenter::peekToken(u2& aLen, u2& aSymLen, u2 n)
 		int num = m_unidict->findHits((const char*)ptr,&rs[1],1024-1, MAX_TOKEN_LENGTH);
 		if(num){
 			if(rs[1].length == len)
-				m_thunk.setItems(i, num, &rs[1]);
+				m_thunk.setItems(i, num, &rs[1], m_unidict);
 			else{
 				//no single char in unigram-dict.
 				rs[0].length = len;
 				rs[0].value = 1;
-				m_thunk.setItems(i,num+1, rs);
+				m_thunk.setItems(i,num+1, rs, m_unidict);
 			}
 		}else{
 			rs[0].length = len;
 			rs[0].value = 1;
-			m_thunk.setItems(i,1, rs);
+			m_thunk.setItems(i,1, rs, m_unidict);
 		}
-		if(m_kwdict)
-			num = m_kwdict->findHits((const char*)ptr,&rs[1],1024-1, MAX_TOKEN_LENGTH);
-		else
-			num = 0;
-		m_thunk.setKwItems(i, num, &rs[1]); //set to kword
+		if (m_kwdict) {
+      num = m_kwdict->findHits((const char*) ptr, &rs[1], 1024 - 1,
+          MAX_TOKEN_LENGTH);
+    } else {
+      num = 0;
+    }
+		m_thunk.setKwItems(i, num, &rs[1], m_kwdict); //set to kword
 
 		ptr +=  len;
 		i+=len;
@@ -365,16 +346,14 @@ void Segmenter::popToken(u2 len, u2 n)
 }
 
 
-	
-const u1* Segmenter::peekKwToken(u2& aLen, u2& aSymLen)
-{
-	//m_buffer_chunk_begin
-	u2 pos = 0;
-	m_thunk.peekKwToken(pos,aLen);
-	aSymLen = aLen;
-	return &m_buffer_chunk_begin[pos];
+const u1* Segmenter::peekKwToken(u2& aLen, u2& aSymLen) {
+  //m_buffer_chunk_begin
+  u2 pos = 0;
+  m_thunk.peekKwToken(pos, aLen);
+  aSymLen = aLen;
+  return &m_buffer_chunk_begin[pos];
 }
-	
+
 void  Segmenter::popKwToken(u2 len)
 {
 	return;
@@ -392,13 +371,7 @@ bool Segmenter::GetNextToken(SegmentedToken* word, int ref_offset) {
   word->word_.assign(tok, tok + len);
   word->begin_ = ref_offset + current_offset_;
   word->end_ = word->begin() + len;
-  hash_map<string, string>::const_iterator iter =
-      token_type_.find(word->word_);
-  if (iter == token_type_.end()) {
-    word->token_type_ = kDefaultTokenType;
-  } else {
-    word->token_type_ = iter->second;
-  }
+  m_unidict->FindTypes(word->word_, &word->token_type_);
   popToken(len);
   current_offset_ += len;
   return true;

@@ -25,11 +25,8 @@
 
 namespace css {
 
-
-
-UnigramRecord::UnigramRecord()
-{
-    count = 0;
+UnigramRecord::UnigramRecord(const std::string& k, int f, int type)
+    : key(k), freq(f), token_type(type) {
 }
 
 } /* End of namespace css */

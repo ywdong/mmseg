@@ -23,9 +23,13 @@
 
 #include "Segmenter.h"
 #include "SegmenterManager.h"
+#include "simple_line_reader.h"
 extern "C"{
 #include "iniparser/iniparser.h"
 }
+
+using std::string;
+
 namespace css {
 
 
@@ -35,7 +39,7 @@ const char g_wordweight_unigram_dict_name[] = "weight.lib";
 const char g_synonyms_dict_name[] = "synonyms.dat";
 const char g_thesaurus_dict_name[] = "thesaurus.lib";
 const char g_config_name[] = "mmseg.ini";
-const char g_token_type_dict_name[] = "token_type.csv";
+//const char g_token_type_dict_name[] = "token_type.txt";
 
 /** 
  *  Return a newly created segmenter
@@ -58,7 +62,6 @@ Segmenter *SegmenterManager::getSegmenter(bool bFromPool) {
     if (m_thesaurus.isLoad())
       seg->m_thesaurus = &m_thesaurus;
     seg->m_config = &m_config;
-    seg->LoadTokenTypeDict(token_type_dict_path_);
   }
   return seg;
 }
@@ -101,6 +104,27 @@ void SegmenterManager::loadconfig(const char* confile) {
       2); //output this only when term weight over 2
 }
 
+//bool SegmenterManager::LoadTokenTypeFile(const char* path) {
+//  printf("begin to load token type dict:%s\n", path);
+//  SimpleLineReader reader(path);
+//  vector<string> lines;
+//  if (!reader.ReadLines(&lines)) {
+//    return false;
+//  }
+//  for (size_t i = 0; i < lines.size(); ++i) {
+//    string::size_type index = lines[i].find('\t');
+//    if (index == string::npos) {
+//      printf("bad line:%s\n", lines[i]);
+//      continue;
+//    }
+//    string token = lines[i].substr(0, index);
+//    string type = lines[i].substr(index + 1);
+//    vector<TokenType::type> types;
+//    ParseTypesFromInt(atoi(type.c_str()), &types);
+//    m_token_type.insert(make_pair(token, types));
+//  }
+//}
+
 int SegmenterManager::init(const char* path, u1 method) {
   if (method != SEG_METHOD_NGRAM)
     return -4; //unsupport segmethod.
@@ -139,11 +163,10 @@ int SegmenterManager::init(const char* path, u1 method) {
       printf("Unigram dictionary load Error\n");
       return nRet;
     }
-
-    memcpy(&buf[nLen],g_token_type_dict_name,strlen(g_token_type_dict_name));
-    buf[nLen + strlen(g_token_type_dict_name)] = 0;
-    token_type_dict_path_.assign(buf);
-    printf("file name:%s\n", token_type_dict_path_.c_str());
+//
+//    memcpy(&buf[nLen],g_token_type_dict_name,strlen(g_token_type_dict_name));
+//    buf[nLen + strlen(g_token_type_dict_name)] = 0;
+//    LoadTokenTypeFile(buf);
 
     //no needs to care kwformat
     memcpy(&buf[nLen],g_kword_unigram_dict_name,strlen(g_kword_unigram_dict_name));
